@@ -15,19 +15,8 @@ const BLACK = 4;
 const DIRS = ['up', 'down', 'left', 'right'];
 const OPPOSITE = { up: 'down', down: 'up', left: 'right', right: 'left' };
 
-// Penguin pattern
-const PENGUIN = [
-  [0,0,0,0,0,0,0,0,0,0],
-  [0,0,0,0,0,0,0,0,0,0],
-  [0,0,0,4,4,4,4,0,0,0],
-  [0,0,4,1,2,2,1,4,0,0],
-  [0,0,4,4,2,2,4,4,0,0],
-  [0,0,4,4,3,3,4,4,0,0],
-  [0,0,4,3,3,3,3,4,0,0],
-  [0,0,0,4,4,4,4,0,0,0],
-  [0,0,0,0,1,1,0,0,0,0],
-  [0,0,0,0,0,0,0,0,0,0],
-];
+// Shared level data (edit levels.js to change the puzzle)
+const { PENGUIN_PATTERN } = require('./levels.js');
 
 // Deep copy
 function clone(board) {
@@ -243,14 +232,14 @@ function solve(initial, maxDepth = 40) {
 // ============================================================
 console.log('Block Clearing Solver');
 console.log('====================');
-console.log(`Initial blocks: ${countBlocks(PENGUIN)}`);
+console.log(`Initial blocks: ${countBlocks(PENGUIN_PATTERN)}`);
 console.log('Starting BFS search (max depth 30)...\n');
 
-const solution = solve(PENGUIN, 30);
+const solution = solve(PENGUIN_PATTERN, 30);
 
 if (solution) {
   console.log('\n--- Verifying solution ---');
-  let board = clone(PENGUIN);
+  let board = clone(PENGUIN_PATTERN);
   console.log(`Start: ${countBlocks(board)} blocks`);
   for (let i = 0; i < solution.length; i++) {
     const next = applyMove(board, solution[i]);

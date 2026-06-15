@@ -248,6 +248,7 @@ h1 {
   </div>
 </div>
 
+<script src="levels.js"></script>
 <script>
 // ============================================================
 //  CONSTANTS
@@ -262,37 +263,10 @@ const BLACK = 4;       // matches BOTTOM border
 
 const DIRECTION = { UP: 'up', DOWN: 'down', LEFT: 'left', RIGHT: 'right' };
 
-// ============================================================
-//  LEVEL DATA — Penguin pixel art (10×10)
-//  Y=Yellow(1)  P=Pink(2)  D=DarkBlue(3)  B=Black(4)  .=Empty(0)
-//
-//     0 1 2 3 4 5 6 7 8 9
-//  0: . . . . . . . . . .
-//  1: . . . . . . . . . .
-//  2: . . . B B B B . . .
-//  3: . . B Y P P Y B . .
-//  4: . . B B P P B B . .
-//  5: . . B B D D B B . .
-//  6: . . B D D D D B . .
-//  7: . . . B B B B . . .
-//  8: . . . . Y Y . . . .
-//  9: . . . . . . . . . .
-// ============================================================
-const PENGUIN_PATTERN = [
-  [0,0,0,0,0,0,0,0,0,0], // row 0
-  [0,0,0,0,0,0,0,0,0,0], // row 1
-  [0,0,0,4,4,4,4,0,0,0], // row 2 — black head
-  [0,0,4,1,2,2,1,4,0,0], // row 3 — yellow eyes, pink face
-  [0,0,4,4,2,2,4,4,0,0], // row 4 — pink belly, black sides
-  [0,0,4,4,3,3,4,4,0,0], // row 5 — dark blue wings
-  [0,0,4,3,3,3,3,4,0,0], // row 6 — dark blue body
-  [0,0,0,4,4,4,4,0,0,0], // row 7 — black bottom
-  [0,0,0,0,1,1,0,0,0,0], // row 8 — yellow feet
-  [0,0,0,0,0,0,0,0,0,0], // row 9
-];
+  // PENGUIN_PATTERN defined in levels.js (shared with solver.js)
 
-// ============================================================
-//  GAME STATE
+  // ============================================================
+  //  GAME STATE
 // ============================================================
 let board = [];           // 2D array: board[r][c] = color (0-4)
 let blockEls = [];        // 2D array: blockEls[r][c] = HTMLElement | null
