@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Block Clearing</title>
+<style>
+/* === Reset & Base === */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* === Game Container === */
+#game-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  max-width: 500px;
+  width: 100%;
+}
+
+h1 {
+  font-size: clamp(1.4rem, 4vw, 1.8rem);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #f0e6d3;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+
+/* === Board Wrapper === */
+#board-wrapper {
+  display: flex;
+  flex-direction: column;
+  filter: drop-shadow(0 4px 20px rgba(0,0,0,0.5));
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+#middle-row {
+  display: flex;
+}
+
+/* === Borders === */
+.border {
+  flex-shrink: 0;
+}
+
+#border-top {
+  height: var(--cell-size);
+  background: #FF69B4;
+  box-shadow: inset 0 -2px 4px rgba(0,0,0,0.2);
+}
+
+#border-bottom {
+  height: var(--cell-size);
+  background: #2d2d2d;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+}
+
+#border-left {
+  width: var(--cell-size);
+  background: #FFD700;
+  box-shadow: inset -2px 0 4px rgba(0,0,0,0.2);
+}
+
+#border-right {
+  width: var(--cell-size);
+  background: #1a237e;
+  box-shadow: inset 2px 0 4px rgba(0,0,0,0.2);
+}
+
+/* === Board === */
+#board {
+  position: relative;
+  width: calc(var(--cell-size) * 10);
+  height: calc(var(--cell-size) * 10);
+  background: #1a2744;
+  /* subtle grid lines */
+  background-image:
+    linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+  background-size: var(--cell-size) var(--cell-size);
+}
+
+/* === Blocks === */
+.block {
+  position: absolute;
+  width: var(--cell-size);
+  height: var(--cell-size);
+  border-radius: 3px;
+  transition: transform 180ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  will-change: transform;
+  /* inner highlight for 3D feel */
+  box-shadow: inset 2px 2px 4px rgba(255,255,255,0.2),
+              inset -2px -2px 4px rgba(0,0,0,0.3),
+              0 1px 3px rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+/* Block Colors */
+.block-1 { background: #FFD700; }  /* Yellow */
+.block-2 { background: #FF69B4; }  /* Pink */
+.block-3 { background: #3d5afe; }  /* Dark Blue */
+.block-4 { background: #4a4a4a; }  /* Black (dark gray for visibility) */
+
+/* === Status Bar === */
+#status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  width: 100%;
+}
+
+#move-counter {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #c0c0c0;
+  min-width: 90px;
+  text-align: center;
+}
+
+#restart-btn {
+  padding: 8px 24px;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  background: #e94560;
+  color: white;
+  transition: background 150ms, transform 100ms;
+}
+#restart-btn:hover { background: #c23152; }
+#restart-btn:active { transform: scale(0.96); }
+
+/* === Message === */
+#message {
+  font-size: 0.9rem;
+  color: #888;
+  text-align: center;
+  min-height: 1.4em;
+  transition: color 300ms;
+}
+#message.success { color: #4caf50; }
+
+/* === Win Overlay === */
+#win-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+  opacity: 1;
+  transition: opacity 300ms;
+}
+#win-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#win-dialog {
+  background: #1e2a3a;
+  border-radius: 16px;
+  padding: 40px 48px;
+  text-align: center;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+  animation: popIn 400ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+@keyframes popIn {
+  from { transform: scale(0.7); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+#win-dialog h2 {
+  font-size: 2rem;
+  margin-bottom: 12px;
+  color: #ffd700;
+}
+#win-dialog p {
+  font-size: 1.1rem;
+  margin-bottom: 24px;
+  color: #ccc;
+}
+#play-again-btn {
+  padding: 12px 36px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  background: #4caf50;
+  color: white;
+  transition: background 150ms, transform 100ms;
+}
+#play-again-btn:hover { background: #388e3c; }
+#play-again-btn:active { transform: scale(0.96); }
+
+/* === Responsive === */
+@media (max-width: 400px) {
+  #game-container { padding: 8px; gap: 10px; }
+  #win-dialog { padding: 28px 24px; }
+}
+</style>
+</head>
+<body>
+
+<div id="game-container">
+  <h1>🟨 方块消除 🟩</h1>
+  <div id="board-wrapper">
+    <div id="border-top" class="border"></div>
+    <div id="middle-row">
+      <div id="border-left" class="border"></div>
+      <div id="board"></div>
+      <div id="border-right" class="border"></div>
+    </div>
+    <div id="border-bottom" class="border"></div>
+  </div>
+  <div id="status">
+    <span id="move-counter">步数: 0</span>
+    <button id="restart-btn">重新开始</button>
+  </div>
+  <div id="message">↑↓←→ 或滑动屏幕来玩</div>
+</div>
+
+<div id="win-overlay" class="hidden">
+  <div id="win-dialog">
+    <h2>🎉 恭喜通关！</h2>
+    <p id="win-moves"></p>
+    <button id="play-again-btn">再来一局</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  CONSTANTS
+// ============================================================
+const ROWS = 10;
+const COLS = 10;
+const EMPTY = 0;
+const YELLOW = 1;      // matches LEFT border
+const PINK = 2;        // matches TOP border
+const DARK_BLUE = 3;   // matches RIGHT border
+const BLACK = 4;       // matches BOTTOM border
+
+const DIRECTION = { UP: 'up', DOWN: 'down', LEFT: 'left', RIGHT: 'right' };
+
+// ============================================================
+//  LEVEL DATA — Penguin pixel art (10×10)
+//  Y=Yellow(1)  P=Pink(2)  D=DarkBlue(3)  B=Black(4)  .=Empty(0)
+//
+//     0 1 2 3 4 5 6 7 8 9
+//  0: . . . . . . . . . .
+//  1: . . . . . . . . . .
+//  2: . . . B B B B . . .
+//  3: . . B Y P P Y B . .
+//  4: . . B B P P B B . .
+//  5: . . B B D D B B . .
+//  6: . . B D D D D B . .
+//  7: . . . B B B B . . .
+//  8: . . . . Y Y . . . .
+//  9: . . . . . . . . . .
+// ============================================================
+const PENGUIN_PATTERN = [
+  [0,0,0,0,0,0,0,0,0,0], // row 0
+  [0,0,0,0,0,0,0,0,0,0], // row 1
+  [0,0,0,4,4,4,4,0,0,0], // row 2 — black head
+  [0,0,4,1,2,2,1,4,0,0], // row 3 — yellow eyes, pink face
+  [0,0,4,4,2,2,4,4,0,0], // row 4 — pink belly, black sides
+  [0,0,4,4,3,3,4,4,0,0], // row 5 — dark blue wings
+  [0,0,4,3,3,3,3,4,0,0], // row 6 — dark blue body
+  [0,0,0,4,4,4,4,0,0,0], // row 7 — black bottom
+  [0,0,0,0,1,1,0,0,0,0], // row 8 — yellow feet
+  [0,0,0,0,0,0,0,0,0,0], // row 9
+];
+
+// ============================================================
+//  GAME STATE
+// ============================================================
+let board = [];           // 2D array: board[r][c] = color (0-4)
+let blockEls = [];        // 2D array: blockEls[r][c] = HTMLElement | null
+let moveCount = 0;
+let isAnimating = false;
+let cellSize = 0;
+
+// ============================================================
+//  DOM REFERENCES
+// ============================================================
+const boardEl = document.getElementById('board');
+const moveCounterEl = document.getElementById('move-counter');
+const messageEl = document.getElementById('message');
+const winOverlayEl = document.getElementById('win-overlay');
+const winMovesEl = document.getElementById('win-moves');
+const restartBtn = document.getElementById('restart-btn');
+const playAgainBtn = document.getElementById('play-again-btn');
+
+// ============================================================
+//  CELL SIZE — Responsive calculation
+// ============================================================
+function computeCellSize() {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  // Board is 10 cells + 2 border cells; leave padding
+  const maxByWidth = Math.floor((vw - 40) / 12);
+  const maxByHeight = Math.floor((vh - 220) / 12);
+  const size = Math.min(maxByWidth, maxByHeight, 48);
+  return Math.max(size, 24); // minimum 24px per cell
+}
+
+function applyCellSize() {
+  cellSize = computeCellSize();
+  document.documentElement.style.setProperty('--cell-size', cellSize + 'px');
+}
+
+// ============================================================
+//  INITIALIZATION
+// ============================================================
+function initBoard() {
+  board = PENGUIN_PATTERN.map(row => [...row]);
+  blockEls = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+  moveCount = 0;
+}
+
+function renderAllBlocks() {
+  // Clear all existing blocks
+  boardEl.innerHTML = '';
+  blockEls = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (board[r][c] !== EMPTY) {
+        const el = document.createElement('div');
+        el.className = `block block-${board[r][c]}`;
+        el.style.transform = `translate(${c * cellSize}px, ${r * cellSize}px)`;
+        boardEl.appendChild(el);
+        blockEls[r][c] = el;
+      }
+    }
+  }
+}
+
+// ============================================================
+//  CORE LOGIC — Sliding
+// ============================================================
+function slide(direction) {
+  let changed = false;
+
+  if (direction === DIRECTION.LEFT) {
+    for (let r = 0; r < ROWS; r++) {
+      const blocks = [];
+      for (let c = 0; c < COLS; c++) {
+        if (board[r][c] !== EMPTY) blocks.push(board[r][c]);
+      }
+      for (let c = 0; c < COLS; c++) {
+        const newVal = c < blocks.length ? blocks[c] : EMPTY;
+        if (board[r][c] !== newVal) changed = true;
+        board[r][c] = newVal;
+      }
+    }
+  } else if (direction === DIRECTION.RIGHT) {
+    for (let r = 0; r < ROWS; r++) {
+      const blocks = [];
+      for (let c = 0; c < COLS; c++) {
+        if (board[r][c] !== EMPTY) blocks.push(board[r][c]);
+      }
+      for (let c = 0; c < COLS; c++) {
+        const idx = c - (COLS - blocks.length);
+        const newVal = idx >= 0 ? blocks[idx] : EMPTY;
+        if (board[r][c] !== newVal) changed = true;
+        board[r][c] = newVal;
+      }
+    }
+  } else if (direction === DIRECTION.UP) {
+    for (let c = 0; c < COLS; c++) {
+      const blocks = [];
+      for (let r = 0; r < ROWS; r++) {
+        if (board[r][c] !== EMPTY) blocks.push(board[r][c]);
+      }
+      for (let r = 0; r < ROWS; r++) {
+        const newVal = r < blocks.length ? blocks[r] : EMPTY;
+        if (board[r][c] !== newVal) changed = true;
+        board[r][c] = newVal;
+      }
+    }
+  } else if (direction === DIRECTION.DOWN) {
+    for (let c = 0; c < COLS; c++) {
+      const blocks = [];
+      for (let r = 0; r < ROWS; r++) {
+        if (board[r][c] !== EMPTY) blocks.push(board[r][c]);
+      }
+      for (let r = 0; r < ROWS; r++) {
+        const idx = r - (ROWS - blocks.length);
+        const newVal = idx >= 0 ? blocks[idx] : EMPTY;
+        if (board[r][c] !== newVal) changed = true;
+        board[r][c] = newVal;
+      }
+    }
+  }
+
+  return changed;
+}
+
+// ============================================================
+//  CORE LOGIC — Elimination detection
+// ============================================================
+function findEliminations() {
+  const targets = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const v = board[r][c];
+      if (v === EMPTY) continue;
+      if ((v === YELLOW && c === 0) ||
+          (v === PINK && r === 0) ||
+          (v === DARK_BLUE && c === COLS - 1) ||
+          (v === BLACK && r === ROWS - 1)) {
+        targets.push({ r, c });
+      }
+    }
+  }
+  return targets;
+}
+
+// ============================================================
+//  CORE LOGIC — Win check
+// ============================================================
+function checkWin() {
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (board[r][c] !== EMPTY) return false;
+    }
+  }
+  return true;
+}
+
+// ============================================================
+//  RENDERING — Sync DOM elements to match board after slide
+//  Uses order-preserving property: within each row/col,
+//  blocks maintain their relative order after a slide.
+// ============================================================
+function syncBlocksAfterSlide(direction) {
+  const newBlockEls = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+  const reusedEls = new Set(); // Track which DOM elements were remapped
+  const horizontal = (direction === DIRECTION.LEFT || direction === DIRECTION.RIGHT);
+
+  if (horizontal) {
+    for (let r = 0; r < ROWS; r++) {
+      // Collect old elements in left-to-right order
+      const oldEls = [];
+      for (let c = 0; c < COLS; c++) {
+        if (blockEls[r][c] !== null) {
+          oldEls.push(blockEls[r][c]);
+        }
+      }
+      // Collect new positions in left-to-right order from board
+      const newPositions = [];
+      for (let c = 0; c < COLS; c++) {
+        if (board[r][c] !== EMPTY) {
+          newPositions.push({ r, c });
+        }
+      }
+      // Map old elements to new positions by index (order is preserved by slide)
+      for (let i = 0; i < oldEls.length && i < newPositions.length; i++) {
+        const { r: nr, c: nc } = newPositions[i];
+        const el = oldEls[i];
+        el.style.transform = `translate(${nc * cellSize}px, ${nr * cellSize}px)`;
+        newBlockEls[nr][nc] = el;
+        reusedEls.add(el);
+      }
+    }
+  } else {
+    // Vertical
+    for (let c = 0; c < COLS; c++) {
+      const oldEls = [];
+      for (let r = 0; r < ROWS; r++) {
+        if (blockEls[r][c] !== null) {
+          oldEls.push(blockEls[r][c]);
+        }
+      }
+      const newPositions = [];
+      for (let r = 0; r < ROWS; r++) {
+        if (board[r][c] !== EMPTY) {
+          newPositions.push({ r, c });
+        }
+      }
+      for (let i = 0; i < oldEls.length && i < newPositions.length; i++) {
+        const { r: nr, c: nc } = newPositions[i];
+        const el = oldEls[i];
+        el.style.transform = `translate(${nc * cellSize}px, ${nr * cellSize}px)`;
+        newBlockEls[nr][nc] = el;
+        reusedEls.add(el);
+      }
+    }
+  }
+
+  // Clean up: remove any DOM elements that were NOT reused (orphaned)
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const el = blockEls[r][c];
+      if (el !== null && !reusedEls.has(el)) {
+        el.remove();
+      }
+    }
+  }
+
+  blockEls = newBlockEls;
+}
+
+// ============================================================
+//  RENDERING — Eliminate blocks with animation
+// ============================================================
+function animateEliminations(targets) {
+  return new Promise(resolve => {
+    const eliminatedEls = [];
+    for (const { r, c } of targets) {
+      const el = blockEls[r][c];
+      if (el) {
+        // Append scale(0) to current transform so block shrinks in-place
+        el.style.transition = 'transform 250ms ease-in, opacity 250ms ease-in';
+        el.style.transform = el.style.transform + ' scale(0)';
+        el.style.opacity = '0';
+        eliminatedEls.push(el);
+        blockEls[r][c] = null;
+        board[r][c] = EMPTY;
+      }
+    }
+
+    if (eliminatedEls.length === 0) {
+      resolve();
+      return;
+    }
+
+    // Wait for CSS transition to complete, then remove elements
+    setTimeout(() => {
+      for (const el of eliminatedEls) {
+        el.remove();
+      }
+      resolve();
+    }, 280);
+  });
+}
+
+// ============================================================
+//  UTILITY — Delay
+// ============================================================
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// ============================================================
+//  ANIMATION CONTROLLER — Full chain reaction for one swipe
+// ============================================================
+async function processMove(direction) {
+  if (isAnimating) return;
+  isAnimating = true;
+
+  // Step 1: Initial slide
+  const moved = slide(direction);
+  if (!moved) {
+    isAnimating = false;
+    // Show "nothing moved" hint briefly
+    messageEl.textContent = '无法移动，换个方向试试';
+    messageEl.className = '';
+    setTimeout(() => {
+      if (messageEl.textContent === '无法移动，换个方向试试') {
+        messageEl.textContent = '↑↓←→ 或滑动屏幕来玩';
+      }
+    }, 1500);
+    return;
+  }
+
+  moveCount++;
+  updateMoveCounter();
+  messageEl.textContent = '';
+  messageEl.className = '';
+
+  syncBlocksAfterSlide(direction);
+  await delay(200); // Let slide animation complete
+
+  // Step 2: Chain reaction loop
+  while (true) {
+    const targets = findEliminations();
+    if (targets.length === 0) break;
+
+    await animateEliminations(targets);
+
+    // Slide again to fill gaps
+    const slideChanged = slide(direction);
+    syncBlocksAfterSlide(direction);
+
+    if (!slideChanged) break;
+
+    await delay(200);
+  }
+
+  // Step 3: Check win
+  if (checkWin()) {
+    showWin();
+  }
+
+  isAnimating = false;
+}
+
+// ============================================================
+//  UI — Move counter
+// ============================================================
+function updateMoveCounter() {
+  moveCounterEl.textContent = `步数: ${moveCount}`;
+}
+
+// ============================================================
+//  UI — Win screen
+// ============================================================
+function showWin() {
+  winMovesEl.textContent = `你用了 ${moveCount} 步完成了消除！`;
+  winOverlayEl.classList.remove('hidden');
+  messageEl.textContent = '✨ 全部消除！';
+  messageEl.className = 'success';
+}
+
+function hideWin() {
+  winOverlayEl.classList.add('hidden');
+}
+
+// ============================================================
+//  INPUT — Keyboard
+// ============================================================
+document.addEventListener('keydown', (e) => {
+  if (isAnimating) return;
+
+  let direction = null;
+  switch (e.key) {
+    case 'ArrowLeft':
+    case 'a':
+    case 'A':
+      direction = DIRECTION.LEFT;
+      break;
+    case 'ArrowRight':
+    case 'd':
+    case 'D':
+      direction = DIRECTION.RIGHT;
+      break;
+    case 'ArrowUp':
+    case 'w':
+    case 'W':
+      direction = DIRECTION.UP;
+      break;
+    case 'ArrowDown':
+    case 's':
+    case 'S':
+      direction = DIRECTION.DOWN;
+      break;
+  }
+
+  if (direction) {
+    e.preventDefault();
+    processMove(direction);
+  }
+});
+
+// ============================================================
+//  INPUT — Touch / Swipe
+// ============================================================
+let touchStartX = 0;
+let touchStartY = 0;
+let touchActive = false;
+
+const boardWrapper = document.getElementById('board-wrapper');
+boardWrapper.addEventListener('touchstart', (e) => {
+  if (isAnimating) return;
+  const touch = e.touches[0];
+  touchStartX = touch.clientX;
+  touchStartY = touch.clientY;
+  touchActive = true;
+}, { passive: true });
+
+boardWrapper.addEventListener('touchmove', (e) => {
+  e.preventDefault(); // Prevent scrolling while playing
+}, { passive: false });
+
+boardWrapper.addEventListener('touchend', (e) => {
+  if (!touchActive || isAnimating) return;
+  touchActive = false;
+
+  const touch = e.changedTouches[0];
+  const dx = touch.clientX - touchStartX;
+  const dy = touch.clientY - touchStartY;
+  const absDx = Math.abs(dx);
+  const absDy = Math.abs(dy);
+  const threshold = 25;
+
+  if (Math.max(absDx, absDy) < threshold) return; // Too small
+
+  let direction = null;
+  if (absDx > absDy) {
+    direction = dx > 0 ? DIRECTION.RIGHT : DIRECTION.LEFT;
+  } else {
+    direction = dy > 0 ? DIRECTION.DOWN : DIRECTION.UP;
+  }
+
+  processMove(direction);
+});
+
+// ============================================================
+//  BUTTONS
+// ============================================================
+function restart() {
+  if (isAnimating) return; // Don't interrupt animation
+  initBoard();
+  renderAllBlocks();
+  updateMoveCounter();
+  hideWin();
+  messageEl.textContent = '↑↓←→ 或滑动屏幕来玩';
+  messageEl.className = '';
+}
+
+restartBtn.addEventListener('click', restart);
+playAgainBtn.addEventListener('click', restart);
+
+// ============================================================
+//  STARTUP
+// ============================================================
+function startGame() {
+  applyCellSize();
+  initBoard();
+  renderAllBlocks();
+  updateMoveCounter();
+  hideWin();
+  messageEl.textContent = '↑↓←→ 或滑动屏幕来玩';
+}
+
+window.addEventListener('resize', () => {
+  if (isAnimating) return;
+  applyCellSize();
+  // Re-render all blocks at new positions with new cell size
+  renderAllBlocks();
+});
+
+// Run on load
+startGame();
+</script>
+
+</body>
+</html>
