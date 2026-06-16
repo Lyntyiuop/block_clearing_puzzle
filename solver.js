@@ -1,6 +1,6 @@
 // ============================================================
 //  Block Clearing Solver — BFS with state dedup
-//  Verifies the penguin puzzle is solvable and finds a solution.
+//  Verifies all levels in levels.js are solvable.
 //  Usage: node solver.js
 // ============================================================
 
@@ -15,8 +15,8 @@ const BLACK = 4;
 const DIRS = ['up', 'down', 'left', 'right'];
 const OPPOSITE = { up: 'down', down: 'up', left: 'right', right: 'left' };
 
-// Shared level data (edit levels.js to change the puzzle)
-const { PENGUIN_PATTERN } = require('./levels.js');
+// Shared level data (edit levels.js to change levels)
+const { LEVELS } = require('./levels.js');
 
 // Deep copy
 function clone(board) {
@@ -228,31 +228,24 @@ function solve(initial, maxDepth = 40) {
 }
 
 // ============================================================
-//  Run
+//  Run — solve all levels
 // ============================================================
 console.log('Block Clearing Solver');
-console.log('====================');
-console.log(`Initial blocks: ${countBlocks(PENGUIN_PATTERN)}`);
-console.log('Starting BFS search (max depth 30)...\n');
+console.log('====================\n');
 
-const solution = solve(PENGUIN_PATTERN, 30);
+for (let li = 0; li < LEVELS.length; li++) {
+  const level = LEVELS[li];
+  const pattern = level.pattern;
+  console.log(`Level ${li + 1}: ${level.name}`);
+  console.log(`  Initial blocks: ${countBlocks(pattern)}`);
+  console.log('  Searching (max depth 30)...');
 
-if (solution) {
-  console.log('\n--- Verifying solution ---');
-  let board = clone(PENGUIN_PATTERN);
-  console.log(`Start: ${countBlocks(board)} blocks`);
-  for (let i = 0; i < solution.length; i++) {
-    const next = applyMove(board, solution[i]);
-    if (!next) {
-      console.log(`  Move ${i + 1}: ${solution[i]} → NO CHANGE (unexpected)`);
-      break;
-    }
-    board = next;
-    const left = countBlocks(board);
-    console.log(`  Move ${i + 1}: ${solution[i]} → ${left} blocks left`);
-    if (left === 0) {
-      console.log('  🎉 All cleared!');
-      break;
-    }
+  const solution = solve(pattern, 30);
+
+  if (solution) {
+    console.log(`  ✅ SOLVABLE — ${solution.length} moves: ${solution.join(' → ')}`);
+  } else {
+    console.log(`  ❌ NOT SOLVABLE within depth 30`);
   }
+  console.log('');
 }

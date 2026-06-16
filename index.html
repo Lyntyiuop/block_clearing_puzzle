@@ -42,6 +42,38 @@ h1 {
   text-shadow: 0 2px 8px rgba(0,0,0,0.4);
 }
 
+/* === Level Indicator === */
+#level-indicator {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+#level-indicator button {
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  color: #ccc;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 150ms;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#level-indicator button:hover { background: rgba(255,255,255,0.18); }
+#level-indicator button:disabled { opacity: 0.3; cursor: default; }
+
+#level-name {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #f0e6d3;
+  min-width: 60px;
+  text-align: center;
+}
+
 /* === Board Wrapper === */
 #board-wrapper {
   display: flex;
@@ -199,6 +231,22 @@ h1 {
   margin-bottom: 24px;
   color: #ccc;
 }
+#next-level-win-btn {
+  display: none; /* shown by JS when there's a next level */
+  padding: 12px 36px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  background: #ff9800;
+  color: white;
+  transition: background 150ms, transform 100ms;
+  margin-right: 12px;
+}
+#next-level-win-btn:hover { background: #e68900; }
+#next-level-win-btn:active { transform: scale(0.96); }
+
 #play-again-btn {
   padding: 12px 36px;
   font-size: 1.1rem;
@@ -224,6 +272,11 @@ h1 {
 
 <div id="game-container">
   <h1>🟨 方块消除 🟩</h1>
+      <div id="level-indicator">
+        <button id="prev-level-btn" title="上一关">&#9664;</button>
+        <span id="level-name">企鹅</span>
+        <button id="next-level-btn" title="下一关">&#9654;</button>
+      </div>
   <div id="board-wrapper">
     <div id="border-top" class="border"></div>
     <div id="middle-row">
@@ -242,8 +295,9 @@ h1 {
 
 <div id="win-overlay" class="hidden">
   <div id="win-dialog">
-    <h2>🎉 恭喜通关！</h2>
+    <h2 id="win-title">🎉 恭喜通关！</h2>
     <p id="win-moves"></p>
+    <button id="next-level-win-btn">下一关</button>
     <button id="play-again-btn">再来一局</button>
   </div>
 </div>
@@ -263,16 +317,17 @@ const BLACK = 4;       // matches BOTTOM border
 
 const DIRECTION = { UP: 'up', DOWN: 'down', LEFT: 'left', RIGHT: 'right' };
 
-  // PENGUIN_PATTERN defined in levels.js (shared with solver.js)
+  // LEVELS and PENGUIN_PATTERN defined in levels.js (shared with solver.js)
 
   // ============================================================
   //  GAME STATE
-// ============================================================
-let board = [];           // 2D array: board[r][c] = color (0-4)
-let blockEls = [];        // 2D array: blockEls[r][c] = HTMLElement | null
-let moveCount = 0;
-let isAnimating = false;
-let cellSize = 0;
+  // ============================================================
+  let currentLevel = 0;     // index into LEVELS array
+  let board = [];           // 2D array: board[r][c] = color (0-4)
+  let blockEls = [];        // 2D array: blockEls[r][c] = HTMLElement | null
+  let moveCount = 0;
+  let isAnimating = false;
+  let cellSize = 0;
 
 // ============================================================
 //  DOM REFERENCES
@@ -281,9 +336,14 @@ const boardEl = document.getElementById('board');
 const moveCounterEl = document.getElementById('move-counter');
 const messageEl = document.getElementById('message');
 const winOverlayEl = document.getElementById('win-overlay');
+const winTitleEl = document.getElementById('win-title');
 const winMovesEl = document.getElementById('win-moves');
-const restartBtn = document.getElementById('restart-btn');
+const nextLevelWinBtn = document.getElementById('next-level-win-btn');
 const playAgainBtn = document.getElementById('play-again-btn');
+const restartBtn = document.getElementById('restart-btn');
+const prevLevelBtn = document.getElementById('prev-level-btn');
+const nextLevelBtn = document.getElementById('next-level-btn');
+const levelNameEl = document.getElementById('level-name');
 
 // ============================================================
 //  CELL SIZE — Responsive calculation
@@ -307,7 +367,7 @@ function applyCellSize() {
 //  INITIALIZATION
 // ============================================================
 function initBoard() {
-  board = PENGUIN_PATTERN.map(row => [...row]);
+  board = LEVELS[currentLevel].pattern.map(row => [...row]);
   blockEls = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
   moveCount = 0;
 }
@@ -602,7 +662,16 @@ function updateMoveCounter() {
 //  UI — Win screen
 // ============================================================
 function showWin() {
-  winMovesEl.textContent = `你用了 ${moveCount} 步完成了消除！`;
+  const hasNext = currentLevel < LEVELS.length - 1;
+  if (hasNext) {
+    winTitleEl.textContent = '🎉 本关通过！';
+    winMovesEl.textContent = `你用了 ${moveCount} 步完成了${LEVELS[currentLevel].name}关卡！`;
+    nextLevelWinBtn.style.display = 'inline-block';
+  } else {
+    winTitleEl.textContent = '🏆 全部通关！';
+    winMovesEl.textContent = `所有 ${LEVELS.length} 关全部完成，总共用了 ${moveCount} 步！`;
+    nextLevelWinBtn.style.display = 'none';
+  }
   winOverlayEl.classList.remove('hidden');
   messageEl.textContent = '✨ 全部消除！';
   messageEl.className = 'success';
@@ -610,6 +679,28 @@ function showWin() {
 
 function hideWin() {
   winOverlayEl.classList.add('hidden');
+}
+
+function goToLevel(index) {
+  if (index < 0 || index >= LEVELS.length || isAnimating) return;
+  currentLevel = index;
+  initBoard();
+  renderAllBlocks();
+  updateMoveCounter();
+  hideWin();
+  updateLevelIndicator();
+  messageEl.textContent = '↑↓←→ 或滑动屏幕来玩';
+  messageEl.className = '';
+}
+
+function nextLevel() {
+  goToLevel(currentLevel + 1);
+}
+
+function updateLevelIndicator() {
+  levelNameEl.textContent = LEVELS[currentLevel].name;
+  prevLevelBtn.disabled = (currentLevel === 0);
+  nextLevelBtn.disabled = (currentLevel === LEVELS.length - 1);
 }
 
 // ============================================================
@@ -706,6 +797,9 @@ function restart() {
 
 restartBtn.addEventListener('click', restart);
 playAgainBtn.addEventListener('click', restart);
+nextLevelWinBtn.addEventListener('click', nextLevel);
+prevLevelBtn.addEventListener('click', () => goToLevel(currentLevel - 1));
+nextLevelBtn.addEventListener('click', () => goToLevel(currentLevel + 1));
 
 // ============================================================
 //  STARTUP
@@ -715,6 +809,7 @@ function startGame() {
   initBoard();
   renderAllBlocks();
   updateMoveCounter();
+  updateLevelIndicator();
   hideWin();
   messageEl.textContent = '↑↓←→ 或滑动屏幕来玩';
 }
