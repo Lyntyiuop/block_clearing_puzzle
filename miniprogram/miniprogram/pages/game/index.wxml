@@ -1,0 +1,60 @@
+<!-- Block Clearing Puzzle Game -->
+<view class="game-container">
+  <!-- Title -->
+  <view class="title">🟨 方块消除 🟦</view>
+
+  <!-- Level Indicator -->
+  <view class="level-indicator">
+    <view class="level-btn {{levelIndex === 0 ? 'disabled' : ''}}" bindtap="onPrevLevel">◂</view>
+    <text class="level-name">{{levelName}}</text>
+    <view class="level-btn {{levelIndex === totalLevels - 1 ? 'disabled' : ''}}" bindtap="onNextLevel">▸</view>
+  </view>
+
+  <!-- Board -->
+  <view class="board-wrapper">
+    <!-- Top border (pink) -->
+    <view class="border border-top" style="height: {{cellSize}}px;"></view>
+    <!-- Middle row: left border + board + right border -->
+    <view class="middle-row">
+      <view class="border border-left" style="width: {{cellSize}}px;"></view>
+      <view
+        class="board"
+        style="width: {{boardSize}}px; height: {{boardSize}}px;"
+        bindtouchstart="onTouchStart"
+        bindtouchmove="onTouchMove"
+        catchtouchend="onTouchEnd"
+      >
+        <view
+          wx:for="{{blocks}}"
+          wx:key="id"
+          class="block block-{{item.color}} {{item.eliminating ? 'eliminating' : ''}}"
+          style="width: {{cellSize}}px; height: {{cellSize}}px; transform: translate({{item.col * cellSize}}px, {{item.row * cellSize}}px);"
+        ></view>
+      </view>
+      <view class="border border-right" style="width: {{cellSize}}px;"></view>
+    </view>
+    <!-- Bottom border (black) -->
+    <view class="border border-bottom" style="height: {{cellSize}}px;"></view>
+  </view>
+
+  <!-- Status Bar -->
+  <view class="status">
+    <text class="move-counter">步数: {{moveCount}}</text>
+    <view class="restart-btn" bindtap="onRestart">重新开始</view>
+  </view>
+
+  <!-- Hint Message -->
+  <view class="message {{hintClass}}">{{hintText}}</view>
+</view>
+
+<!-- Win Overlay -->
+<view wx:if="{{won}}" class="win-overlay">
+  <view class="win-dialog">
+    <view class="win-title">{{winTitle}}</view>
+    <view class="win-moves">{{winMoves}}</view>
+    <view class="win-buttons">
+      <view wx:if="{{hasNextLevel}}" class="next-btn" bindtap="onNextLevel">下一关</view>
+      <view class="again-btn" bindtap="onRestart">再来一局</view>
+    </view>
+  </view>
+</view>
