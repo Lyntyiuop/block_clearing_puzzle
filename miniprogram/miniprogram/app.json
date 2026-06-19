@@ -1,8 +1,6 @@
 {
   "pages": [
-    "pages/game/index",
-    "pages/index/index",
-    "pages/example/index"
+    "pages/game/index"
   ],
   "window": {
     "backgroundColor": "#1a1a2e",
